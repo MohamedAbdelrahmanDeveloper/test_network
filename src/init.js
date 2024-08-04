@@ -225,7 +225,7 @@ export function userDataUpdate(fileName, options = null) {
 export function userTraffic(text, username, trafficPayload) {
     login(username).then(token=>{
         axios.post(`${URL}/user/api/index.php/api/traffic`,{
-            payload: `${trafficPayload}` //"U2FsdGVkX1+5UAZrJ1zMZIINwDCk8C/88p2c1s2Cjr2B7DN1GFERd4VXUc2rBwXkFCsW/bK90Rorp0QpBr5H4+91ofC5I+hqYC6Ynrgu+00="
+            payload: `${trafficPayload}`
         },{
             headers: { Authorization: `Bearer ${token}` },
             
