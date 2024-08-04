@@ -2,7 +2,7 @@ import axios from 'axios'
 import CryptoJS  from "crypto-js";
 import { readFile, setData, setDataTwo } from './fileSystem.js';
 import child_process from 'child_process'
-import { PASSWORD, PAYLOAD, SECRET, URL } from './var.js';
+import { PASSWORD, SECRET, URL } from './var.js';
 
 function execute(command, callback){
     child_process.exec(command, function(error, stdout, stderr){ callback(stdout); });
@@ -75,8 +75,9 @@ export function ipSearch(ip) {
 
 
 function ipUser(token, username) {
+    const sessionPayload = CryptoJS.AES.encrypt(JSON.stringify({"page":1,"count":10,"sortBy":"radacctid","direction":"desc"}), SECRET).toString()
     axios.post(`${URL}/user/api/index.php/api/index/session`, {
-            payload: PAYLOAD
+            payload: sessionPayload
         }, {
             headers: { Authorization: `Bearer ${token}` }
         }).then(res => {
@@ -85,7 +86,8 @@ function ipUser(token, username) {
                 const data = {
                     username,
                 }
-                console.log(`User: ${username} router: http://${sessions[0].framedipaddress} mac: ${sessions[0].callingstationid}`);
+                console.log(`User: ${username} router: http://${sessions[0].framedipaddress} mac: ${sessions[0].callingstationid} Status: ${sessions[0].acctstoptime ? "Offline" : "Online"}`);
+                console.table(sessions);
                 if (sessions[0].framedipaddress.startsWith('172')) {
                     setData('usersbldy.json', username)
                 }
@@ -118,7 +120,7 @@ export function getIpUsers(username) {
 }
 
 
-function offlineUser(token, username, isDays, isMany, traffic) {
+function offlineUser(token, username, isDays, isMany, traffic, trafficPayload) {
     axios.get(`${URL}/user/api/index.php/api/service`, {
             headers: { Authorization: `Bearer ${token}` }
         }).then(res => {
@@ -129,10 +131,10 @@ function offlineUser(token, username, isDays, isMany, traffic) {
                     if (profile_name >= isMany) {
                         if (isDays) {
                             let days = Math.floor((new Date(user.expiration) - new Date()) / (1000 * 60 * 60 * 24))
-                            traffic ? userTraffic(`yes | ${days} day | baqa is = ${user.profile_name} GB | `, username) : console.log(`yes | ${days} day | baqa is = ${profile_name}GB | `, username);
+                            traffic ? userTraffic(`yes | ${days} day | baqa is = ${user.profile_name} GB | `, username , trafficPayload) : console.log(`yes | ${days} day | baqa is = ${profile_name}GB | `, username, trafficPayload);
                         }
                         else {
-                            traffic ? userTraffic(`Yes | baqa is = ${user.profile_name}GB | `, username) : console.log(`yes | ${days} day | baqa is = ${profile_name}GB | `, username);
+                            traffic ? userTraffic(`Yes | baqa is = ${user.profile_name}GB | `, username, trafficPayload) : console.log(`yes | ${days} day | baqa is = ${profile_name}GB | `, username, trafficPayload);
                             console.log();
                         }
                     }
@@ -147,10 +149,17 @@ function offlineUser(token, username, isDays, isMany, traffic) {
 }
 
 export function getOfflineUsers(file, isDays, isMany, traffic) {
+    const dateForPayload = {
+        "report_type":"daily",
+        "month": new Date().getMonth() + 1,
+        "year": new Date().getFullYear(),
+        "user_id":null
+    }
+    const trafficPayload = CryptoJS.AES.encrypt(JSON.stringify(dateForPayload), SECRET).toString()
     let usernames = JSON.parse(readFile(file))
     usernames.map(user=>{
         login(user.username).then(token=>{
-            offlineUser(token,user.username, isDays, isMany, traffic)
+            offlineUser(token,user.username, isDays, isMany, traffic, trafficPayload)
         }).catch(error=> {
             // console.log('error ', error);
         })
@@ -213,10 +222,10 @@ export function userDataUpdate(fileName, options = null) {
     })
 }
 
-export function userTraffic(text, username) {
+export function userTraffic(text, username, trafficPayload) {
     login(username).then(token=>{
         axios.post(`${URL}/user/api/index.php/api/traffic`,{
-            payload: "U2FsdGVkX1+5UAZrJ1zMZIINwDCk8C/88p2c1s2Cjr2B7DN1GFERd4VXUc2rBwXkFCsW/bK90Rorp0QpBr5H4+91ofC5I+hqYC6Ynrgu+00="
+            payload: `${trafficPayload}` //"U2FsdGVkX1+5UAZrJ1zMZIINwDCk8C/88p2c1s2Cjr2B7DN1GFERd4VXUc2rBwXkFCsW/bK90Rorp0QpBr5H4+91ofC5I+hqYC6Ynrgu+00="
         },{
             headers: { Authorization: `Bearer ${token}` },
             
